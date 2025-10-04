@@ -1,0 +1,40 @@
+{
+  "name": "Alwin Philip Camden",
+  "email": "alwinphilip0105@gmail.com",
+  "contact": "1-201-952-9492",
+  "skills": [
+    "Python",
+    "Java",
+    "JavaScript",
+    "SQL",
+    "MySQL",
+    "AWS",
+    "Docker",
+    "Git",
+    "Machine Learning",
+    "AI",
+    "R",
+    "HTML",
+    "CSS",
+    "PHP",
+    "Go",
+    "Kotlin",
+    "Django"
+  ],
+  "job_preferences": [
+    "Hybrid Work",
+    "Startup Environment",
+    "Collaborative",
+    "Corporate Environment"
+  ],
+  "job_types": [
+    "Part Time",
+    "Contract"
+  ],
+  "location_preferences": [
+    "Cisco CC",
+    "San Francisco, CA",
+    "Chicago, IL",
+    "Seattle, WA"
+  ]
+}
