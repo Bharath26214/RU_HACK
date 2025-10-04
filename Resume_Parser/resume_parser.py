@@ -100,13 +100,13 @@ def extract_resume_links(pdf_path):
 
 def extract_resume_text(pdf_path):
     """
-    Extract all text content from a PDF resume.
+    Extract all text content from a PDF resume and clean Unicode characters.
 
     Args:
         pdf_path (str): Path to the PDF file
 
     Returns:
-        str: All text content from the PDF
+        str: All text content from the PDF with cleaned Unicode
     """
     resume = pymupdf.open(pdf_path)
 
@@ -117,7 +117,75 @@ def extract_resume_text(pdf_path):
         all_text += text + "\n"
 
     resume.close()
-    return all_text
+
+    # Clean Unicode characters
+    cleaned_text = clean_unicode_text(all_text)
+    return cleaned_text
+
+
+def clean_unicode_text(text):
+    """
+    Clean Unicode characters that cause issues in text processing.
+    This ensures cross-platform compatibility.
+
+    Args:
+        text (str): Raw text from PDF
+
+    Returns:
+        str: Cleaned text with problematic Unicode replaced
+    """
+    import re
+    import unicodedata
+
+    # First, normalize Unicode to handle different encodings
+    try:
+        text = unicodedata.normalize("NFKD", text)
+    except:
+        pass  # If normalization fails, continue with original text
+
+    # Replace common problematic Unicode characters
+    replacements = {
+        "\x83": "•",  # Bullet point
+        "ï": "i",  # Latin small letter i with diaeresis
+        "§": "§",  # Section symbol (keep as is)
+        "\u2022": "•",  # Bullet point
+        "\u2023": "•",  # Triangular bullet
+        "\u25cf": "•",  # Black circle
+        "\u25cb": "○",  # White circle
+        "\u2013": "-",  # En dash
+        "\u2014": "--",  # Em dash
+        "\u2018": "'",  # Left single quotation mark
+        "\u2019": "'",  # Right single quotation mark
+        "\u201c": '"',  # Left double quotation mark
+        "\u201d": '"',  # Right double quotation mark
+        "\u00a0": " ",  # Non-breaking space
+        "\u00ad": "",  # Soft hyphen
+    }
+
+    # Apply replacements
+    for old, new in replacements.items():
+        text = text.replace(old, new)
+
+    # More aggressive cleaning for cross-platform compatibility
+    # Keep only printable ASCII characters, newlines, and tabs
+    cleaned_chars = []
+    for char in text:
+        if char.isprintable() or char in "\n\t":
+            # Convert to ASCII if possible, otherwise replace with closest ASCII
+            try:
+                cleaned_chars.append(char.encode("ascii", "replace").decode("ascii"))
+            except:
+                cleaned_chars.append("?")  # Replace unhandled characters with ?
+        else:
+            cleaned_chars.append(" ")  # Replace non-printable with space
+
+    text = "".join(cleaned_chars)
+
+    # Clean up multiple spaces and normalize whitespace
+    text = re.sub(r"\s+", " ", text)  # Multiple spaces to single space
+    text = re.sub(r"\n\s*\n", "\n\n", text)  # Multiple newlines to double newline
+
+    return text.strip()
 
 
 def process_resume(pdf_path):
