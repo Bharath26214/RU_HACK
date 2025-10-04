@@ -1,7 +1,7 @@
 [project]
 name = "ru-hack"
 version = "0.1.0"
-description = ""
+description = "A Python project for Rutgers Hackathon"
 authors = [
     {name = "Sarthak Chandervanshi",email = "54674615+SarthakChandervanshi@users.noreply.github.com"}
 ]
@@ -10,9 +10,32 @@ requires-python = ">=3.12,<3.14"
 dependencies = [
     "pymupdf (>=1.26.4,<2.0.0)",
     "pdfplumber (>=0.11.7,<0.12.0)",
-    "spacy (>=3.8.7,<4.0.0)"
+    "spacy (>=3.8.7,<4.0.0)",
+    "streamlit>=1.28.0",
+    "pypdf>=3.0.0",
+    "python-docx>=0.8.11"
 ]
 
+[project.scripts]
+ru-hack = "ru_hack.main:main"
+
+[tool.poetry]
+name = "ru-hack"
+version = "0.1.0"
+description = "A Python project for Rutgers Hackathon"
+authors = ["Sarthak Chandervanshi <54674615+SarthakChandervanshi@users.noreply.github.com>"]
+readme = "README.md"
+packages = [{include = "ru_hack"}]
+
+[tool.poetry.dependencies]
+python = ">=3.12"
+streamlit = "^1.28.0"
+pypdf = "^3.0.0"
+python-docx = "^0.8.11"
+
+[tool.poetry.scripts]
+ru-hack = "ru_hack.main:main"
+frontend = "Frontend.main:main"
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
@@ -21,4 +44,5 @@ build-backend = "poetry.core.masonry.api"
 [tool.poetry.group.dev.dependencies]
 black = {extras = ["jupyter"], version = "^25.9.0"}
 nbformat = "^5.10.4"
-
+pytest = "^7.0.0"
+flake8 = "^6.0.0"
