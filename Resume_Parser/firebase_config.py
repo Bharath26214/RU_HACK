@@ -57,3 +57,25 @@ def save_resume_data(resume_data, filename):
     doc_ref.set(resume_data)
 
     return doc_ref.id
+
+def list_firebase_documents():
+    """
+    List all documents in the resumes collection.
+    """
+    try:
+        db, bucket = initialize_firebase()
+        
+        # Get all documents from the resumes collection
+        docs = db.collection("resumes").stream()
+        
+        documents = []
+        for doc in docs:
+            documents.append({
+                "id": doc.id,
+                "data": doc.to_dict()
+            })
+        
+        return documents
+    except Exception as e:
+        print(f"Error listing Firebase documents: {e}")
+        return []

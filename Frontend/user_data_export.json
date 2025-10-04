@@ -14,6 +14,9 @@
     "Machine Learning",
     "AI",
     "Data Science",
+    "TensorFlow",
+    "PyTorch",
+    "Scikit-learn",
     "R",
     "HTML",
     "CSS",
@@ -23,15 +26,19 @@
     "Django"
   ],
   "selected_skills": [
-    "Fast-paced"
+    "Hybrid Work",
+    "Startup Environment"
   ],
   "target_positions": [
-    "Software Engineer"
+    "Software Engineer",
+    "Product Manager"
   ],
   "job_types": [
-    "Full Time"
+    "Part Time",
+    "Internship"
   ],
   "location_preferences": [
-    "New York, NY"
+    "New York, NY",
+    "Chicago, IL"
   ]
 }

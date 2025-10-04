@@ -90,7 +90,7 @@ def print_ui_data_to_terminal(session_state: Dict[str, Any], analysis_data: Dict
 class BackendClient:
     """Client for communicating with backend services."""
     
-    def __init__(self, base_url: str = "https://ruhack.app.n8n.cloud/webhook-test/getdata"):
+    def __init__(self, base_url: str = "https://ruhack.app.n8n.cloud/webhook/getdata"):
         """
         Initialize backend client.
         

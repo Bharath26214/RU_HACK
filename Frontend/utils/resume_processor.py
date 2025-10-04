@@ -25,6 +25,15 @@ def process_resume_with_unicode_handling(pdf_path):
     """
     Process resume with Google Drive and Firebase, handling Unicode errors.
     """
+    # Ensure Resume_Parser directory is in Python path
+    current_file_dir = os.path.dirname(os.path.abspath(__file__))
+    frontend_dir = os.path.dirname(current_file_dir)
+    project_root = os.path.dirname(frontend_dir)
+    resume_parser_dir = os.path.join(project_root, 'Resume_Parser')
+    
+    if resume_parser_dir not in sys.path:
+        sys.path.insert(0, resume_parser_dir)
+    
     try:
         # Try the normal process
         from resume_parser import process_resume_with_gdrive_firestore
@@ -294,6 +303,8 @@ class ResumeProcessor:
         
         try:
             file_content = uploaded_file.read()
+            # Reset file pointer for potential future reads
+            uploaded_file.seek(0)
             file_extension = uploaded_file.name.split('.')[-1].lower()
             links_data = {}
             
@@ -422,8 +433,16 @@ def handle_file_upload(uploaded_file) -> None:
                     
                     # Create temporary file for processing
                     with tempfile.NamedTemporaryFile(delete=False, suffix='.pdf') as temp_file:
-                        temp_file.write(uploaded_file.read())
+                        # Reset file pointer to beginning
+                        uploaded_file.seek(0)
+                        file_content = uploaded_file.read()
+                        temp_file.write(file_content)
                         temp_file_path = temp_file.name
+                        
+                        # Verify file was written correctly
+                        if len(file_content) == 0:
+                            st.error("❌ Uploaded file is empty!")
+                            return
                     
                     # Run resume processing in a subprocess to handle Unicode issues
                     result = process_resume_with_unicode_handling(temp_file_path)
@@ -442,17 +461,21 @@ def handle_file_upload(uploaded_file) -> None:
                         st.session_state.raw_resume_text = result['metadata']['text_content']
                     
                     # Always show upload status
-                    if 'gdrive_url' in result and result['gdrive_url']:
+                    if 'gdrive_url' in result and result['gdrive_url'] and result['gdrive_url'] != 'None':
                         st.success("✅ Resume uploaded to Google Drive successfully!")
                         st.info(f"📁 Google Drive: [View Resume]({result['gdrive_url']})")
                     else:
                         st.warning("⚠️ Google Drive upload failed")
+                        if 'upload_error' in result:
+                            st.error(f"Error: {result['upload_error']}")
                     
-                    if 'document_id' in result and result['document_id']:
+                    if 'document_id' in result and result['document_id'] and result['document_id'] != 'None':
                         st.success("✅ Resume data saved to Firebase successfully!")
                         st.info(f"🔥 Firebase Document ID: `{result['document_id']}`")
                     else:
                         st.warning("⚠️ Firebase save failed")
+                        if 'upload_error' in result:
+                            st.error(f"Error: {result['upload_error']}")
                         
                 except Exception as e:
                     st.warning(f"⚠️ Resume processing failed: {str(e)}")

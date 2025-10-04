@@ -88,3 +88,21 @@ def create_folder_if_not_exists(service, folder_name):
         }
         folder = service.files().create(body=folder_metadata, fields="id").execute()
         return folder.get("id")
+
+def list_gdrive_files():
+    """
+    List all files in the Resume PDFs folder.
+    """
+    try:
+        service = authenticate_gdrive()
+        folder_id = create_folder_if_not_exists(service, "Resume PDFs")
+        
+        # Query files in the folder
+        query = f"'{folder_id}' in parents and trashed=false"
+        results = service.files().list(q=query, fields="files(id,name,createdTime,size)").execute()
+        files = results.get("files", [])
+        
+        return files
+    except Exception as e:
+        print(f"Error listing Google Drive files: {e}")
+        return []
