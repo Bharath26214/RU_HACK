@@ -22,3 +22,16 @@ Thumbs.db
 
 # Poetry
 poetry.lock
+
+# Firebase credentials
+firebase-service-account.json
+
+# Google Drive credentials
+gdrive_credentials.json
+gdrive_service_account.json
+
+# OAuth tokens (generated locally)
+token.pickle
+
+# Other JSON files (be careful with this - might exclude needed files)
+# *.json

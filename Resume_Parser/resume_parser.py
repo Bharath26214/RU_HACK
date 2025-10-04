@@ -2,12 +2,15 @@
 Resume Parser Library
 
 A Python library for extracting links and text content from PDF resumes.
+Includes Firebase integration for uploading PDFs and storing data.
 """
 
 import pymupdf
 import re
 import json
 import os
+from firebase_config import save_resume_data
+from gdrive_config import upload_pdf_to_gdrive
 
 
 # Link Classification Patterns
@@ -158,18 +161,67 @@ def process_resume_to_json(pdf_path):
     return json_string
 
 
+def process_resume_with_firestore(pdf_path):
+    """
+    Process resume and save JSON data to Firestore.
+
+    Args:
+        pdf_path (str): Path to the PDF file
+
+    Returns:
+        dict: Dictionary containing resume data with Firestore document ID
+    """
+    # Process resume using existing function
+    resume_data = process_resume(pdf_path)
+
+    # Get filename for Firestore
+    filename = os.path.basename(pdf_path)
+
+    try:
+        # Save data to Firestore
+        doc_id = save_resume_data(resume_data, filename)
+        resume_data["document_id"] = doc_id
+        print(f"✅ Data saved to Firestore with ID: {doc_id}")
+
+    except Exception as e:
+        print(f"❌ Firestore upload failed: {str(e)}")
+        resume_data["firebase_error"] = str(e)
+
+    return resume_data
+
+
+def process_resume_to_json_with_firestore(pdf_path):
+    """
+    Process resume, save to Firestore, and return JSON string.
+
+    Args:
+        pdf_path (str): Path to the PDF file
+
+    Returns:
+        str: JSON string containing resume data with Firestore document ID
+    """
+    # Process resume with Firestore
+    resume_data = process_resume_with_firestore(pdf_path)
+
+    # Convert to JSON string
+    json_string = json.dumps(resume_data, indent=2)
+
+    return json_string
+
+
 # Example usage
 if __name__ == "__main__":
     # Example: Process a resume
     pdf_file = "Resume_Parser/Test_Resumes/Sarthak_Resume.pdf"
 
     if os.path.exists(pdf_file):
-        # Process resume and get JSON
-        json_result = process_resume_to_json(pdf_file)
+        print("=== PROCESSING RESUME WITH GOOGLE DRIVE + FIRESTORE ===")
+
+        # Process resume with Google Drive and Firestore
+        result = process_resume_with_gdrive_firestore(pdf_file)
 
         # Display results
-        print("=== EXTRACTED LINKS ===")
-        result = process_resume(pdf_file)
+        print("\n=== EXTRACTED LINKS ===")
         flat_links = {}
         for category, data in result["links"].items():
             if isinstance(data, dict):
@@ -190,10 +242,59 @@ if __name__ == "__main__":
         print(f"Text Preview (first 200 chars):")
         print(text_content[:200] + "..." if len(text_content) > 200 else text_content)
 
+        # Show Google Drive info
+        if "gdrive_url" in result:
+            print(f"\n=== GOOGLE DRIVE ===")
+            print(f"PDF URL: {result['gdrive_url']}")
+
+        # Show Firestore info
+        if "document_id" in result:
+            print(f"\n=== FIRESTORE ===")
+            print(f"Document ID: {result['document_id']}")
+
+        if "upload_error" in result:
+            print(f"Upload Error: {result['upload_error']}")
+
         # Show JSON result
         print(f"\n=== JSON RESULT ===")
+        json_result = process_resume_to_json_with_firestore(pdf_file)
         print("JSON string length:", len(json_result))
         print("First 300 characters of JSON:")
         print(json_result[:300] + "...")
     else:
         print(f"File {pdf_file} not found!")
+
+
+def process_resume_with_gdrive_firestore(pdf_path):
+    """
+    Process resume, upload PDF to Google Drive, save JSON to Firestore.
+
+    Args:
+        pdf_path (str): Path to the PDF file
+
+    Returns:
+        dict: Dictionary containing resume data with Google Drive URL and Firestore document ID
+    """
+    # Process resume using existing function
+    resume_data = process_resume(pdf_path)
+
+    # Get filename
+    filename = os.path.basename(pdf_path)
+
+    try:
+        # Upload PDF to Google Drive
+        gdrive_url, gdrive_file_id = upload_pdf_to_gdrive(pdf_path, filename)
+        resume_data["gdrive_url"] = gdrive_url
+        resume_data["gdrive_file_id"] = gdrive_file_id
+        print(f"✅ PDF uploaded to Google Drive: {gdrive_url}")
+
+        # Save data to Firestore
+        doc_id = save_resume_data(resume_data, filename)
+        resume_data["document_id"] = doc_id
+        print(f"✅ Data saved to Firestore with ID: {doc_id}")
+
+    except Exception as e:
+        print(f"❌ Upload failed: {str(e)}")
+        resume_data["upload_error"] = str(e)
+
+    return resume_data
