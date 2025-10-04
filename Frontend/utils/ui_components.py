@@ -414,12 +414,51 @@ class DisplayComponents:
         if 'preferred_location' in results:
             st.info(f"📍 Primary Location: {results['preferred_location']}")
         
-        
         # Display position matches
         if 'position_matches' in results:
             st.markdown("### Position Match Scores")
             for position, score in results['position_matches'].items():
                 st.metric(position, f"{score}%")
+    
+    @staticmethod
+    def display_extracted_links(links_data: dict):
+        """Display extracted links from resume in a formatted way."""
+        if not links_data or not any(links_data.values()):
+            return
+        
+        st.markdown("### 🔗 Extracted Links from Resume")
+        
+        # Display GitHub links
+        if links_data.get('github', {}).get('profile') or links_data.get('github', {}).get('project'):
+            st.markdown("**GitHub:**")
+            for profile in links_data['github'].get('profile', []):
+                st.markdown(f"  - Profile: [{profile}]({profile})")
+            for project in links_data['github'].get('project', []):
+                st.markdown(f"  - Project: [{project}]({project})")
+        
+        # Display LinkedIn links
+        if links_data.get('linkedin', {}).get('profile'):
+            st.markdown("**LinkedIn:**")
+            for profile in links_data['linkedin']['profile']:
+                st.markdown(f"  - [{profile}]({profile})")
+        
+        # Display Portfolio links
+        if links_data.get('portfolio'):
+            st.markdown("**Portfolio:**")
+            for portfolio in links_data['portfolio']:
+                st.markdown(f"  - [{portfolio}]({portfolio})")
+        
+        # Display Email links
+        if links_data.get('email'):
+            st.markdown("**Email:**")
+            for email in links_data['email']:
+                st.markdown(f"  - {email}")
+        
+        # Display Other links
+        if links_data.get('other'):
+            st.markdown("**Other Links:**")
+            for link in links_data['other']:
+                st.markdown(f"  - [{link}]({link})")
     
     @staticmethod
     def display_job_recommendations(recommendations: List[dict]):
@@ -524,14 +563,14 @@ class SessionStateManager:
         if 'preferred_locations' not in st.session_state:
             st.session_state.preferred_locations = []
         
-        if 'selected_positions' not in st.session_state:
-            st.session_state.selected_positions = []
+        if 'target_positions' not in st.session_state:
+            st.session_state.target_positions = []
         
         if 'selected_job_types' not in st.session_state:
             st.session_state.selected_job_types = []
         
-        if 'selected_preferences' not in st.session_state:
-            st.session_state.selected_preferences = []
+        if 'skills' not in st.session_state:
+            st.session_state.skills = []
         
         if 'analyzed_data' not in st.session_state:
             st.session_state.analyzed_data = None
@@ -544,6 +583,9 @@ class SessionStateManager:
         
         if 'extracted_single_location' not in st.session_state:
             st.session_state.extracted_single_location = ""
+        
+        if 'extracted_links' not in st.session_state:
+            st.session_state.extracted_links = {}
     
     @staticmethod
     def update_session_state_from_analysis(analysis_data: dict):

@@ -19,7 +19,9 @@ def initialize_firebase():
         pass
 
     # Path to your service account key
-    cred_path = "firebase-service-account.json"
+    # Get the directory where this file is located (Resume_Parser)
+    current_dir = os.path.dirname(os.path.abspath(__file__))
+    cred_path = os.path.join(current_dir, "firebase-service-account.json")
 
     if not os.path.exists(cred_path):
         raise FileNotFoundError(f"Service account key not found at {cred_path}")

@@ -1,8 +1,8 @@
 {
   "name": "Alwin Philip Camden",
   "email": "alwinphilip0105@gmail.com",
-  "contact": "1-201-952-9492",
-  "skills": [
+  "contact": "Not found",
+  "extracted_skills": [
     "Python",
     "Java",
     "JavaScript",
@@ -13,6 +13,7 @@
     "Git",
     "Machine Learning",
     "AI",
+    "Data Science",
     "R",
     "HTML",
     "CSS",
@@ -21,20 +22,16 @@
     "Kotlin",
     "Django"
   ],
-  "job_preferences": [
-    "Hybrid Work",
-    "Startup Environment",
-    "Collaborative",
-    "Corporate Environment"
+  "selected_skills": [
+    "Fast-paced"
+  ],
+  "target_positions": [
+    "Software Engineer"
   ],
   "job_types": [
-    "Part Time",
-    "Contract"
+    "Full Time"
   ],
   "location_preferences": [
-    "Cisco CC",
-    "San Francisco, CA",
-    "Chicago, IL",
-    "Seattle, WA"
+    "New York, NY"
   ]
 }

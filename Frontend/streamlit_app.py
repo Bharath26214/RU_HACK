@@ -7,6 +7,7 @@ import streamlit as st
 import time
 import sys
 import os
+import json
 
 # Add the Frontend directory to Python path for imports
 frontend_dir = os.path.dirname(os.path.abspath(__file__))
@@ -80,6 +81,18 @@ def profile_analysis_tab():
 
     # Info button explaining required fields
     FormComponents.info_button_with_tooltip()
+    
+    # Debug toggle (remove this in production)
+    if st.checkbox("🐛 Debug Mode", help="Show debug information for multiselect"):
+        st.session_state.debug_mode = True
+    else:
+        st.session_state.debug_mode = False
+    
+    # Resume processing status
+    if st.session_state.get('gdrive_url'):
+        st.info(f"📁 Resume uploaded to Google Drive: [View]({st.session_state.gdrive_url})")
+    if st.session_state.get('firebase_document_id'):
+        st.info(f"🔥 Firebase Document ID: `{st.session_state.firebase_document_id}`")
 
     col_resume, col_prefs = st.columns(2)
 
@@ -99,7 +112,7 @@ def profile_analysis_tab():
         with col1:
             # Show preview of resume text
             preview_text = st.session_state.raw_resume_text[:200] + "..." if len(st.session_state.raw_resume_text) > 200 else st.session_state.raw_resume_text
-        st.text_area(
+            st.text_area(
                 "Resume Text Preview:",
                 value=preview_text,
                 height=100,
@@ -107,8 +120,12 @@ def profile_analysis_tab():
                 help="Preview of your resume text. Click 'Edit Resume Text' to modify."
             )
             # Character count
-        char_count = len(st.session_state.raw_resume_text)
-        st.caption(f"Characters: {char_count:,}")
+            char_count = len(st.session_state.raw_resume_text)
+            st.caption(f"Characters: {char_count:,}")
+            
+            # Show Resume_Parser status
+            if st.session_state.raw_resume_text:
+                st.success("✅ Processed with Resume_Parser (Enhanced PDF parsing)")
         
         with col2:
             st.markdown("<br>", unsafe_allow_html=True)  # Add some spacing
@@ -121,6 +138,7 @@ def profile_analysis_tab():
 
         # Personal Details Section
         st.markdown("## Personal Details (Editable)")
+        st.caption("💡 Personal details will be automatically extracted when you click 'Analyze Profile'")
         
         # Full Name field
         full_name_input = st.text_input("Full Name", value=st.session_state.full_name, key='full_name_input')
@@ -133,8 +151,9 @@ def profile_analysis_tab():
         st.session_state.contact = contact_input
         st.session_state.email = email_input
         
-        # Display the AI-extracted location
-        st.caption(f"**AI Extracted Primary Location from Resume:** {st.session_state.extracted_single_location}")
+        # AI-extracted location display removed as it was often inaccurate
+        
+        # Validation is handled automatically in the form validation functions
         
     with col_prefs:
         st.subheader("Job Preferences and Targets")
@@ -157,8 +176,13 @@ def profile_analysis_tab():
             help="**Required** - Select locations where you prefer to work"
         )
         
-        # Update session state immediately
+        # Always update session state immediately
         st.session_state.preferred_locations = selected_locs
+        
+        # Debug: Show current selections
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug - Selected locations: {selected_locs}")
+            st.write(f"Debug - Session state locations: {st.session_state.preferred_locations}")
         
         # Custom location input (compact)
         col1, col2 = st.columns([4, 1])
@@ -175,28 +199,42 @@ def profile_analysis_tab():
         if add_location_clicked and custom_location and custom_location.strip():
             location = custom_location.strip()
             print(f"TERMINAL: Attempting to add location: {location}")
-            if location not in st.session_state.preferred_locations:
-                st.session_state.preferred_locations.append(location)
-                print(f"TERMINAL: Successfully added location: {location}")
-                print(f"TERMINAL: Current locations: {st.session_state.preferred_locations}")
-                st.success(f"Added: {location}")
+            
+            # Validate location before adding
+            from utils.validation import FormValidator
+            is_valid, error_msg = FormValidator.validate_location(location)
+            
+            if is_valid:
+                if location not in st.session_state.preferred_locations:
+                    st.session_state.preferred_locations.append(location)
+                    print(f"TERMINAL: Successfully added location: {location}")
+                    print(f"TERMINAL: Current locations: {st.session_state.preferred_locations}")
+                    st.success(f"Added: {location}")
+                else:
+                    print(f"TERMINAL: Location already exists: {location}")
+                    st.warning("Location already added!")
             else:
-                print(f"TERMINAL: Location already exists: {location}")
-                st.warning("Location already added!")
-            st.rerun()
+                print(f"TERMINAL: Invalid location: {location} - {error_msg}")
+                st.error(f"Error: {error_msg}")
+            # Removed st.rerun() to reduce lag
 
         # Job Targets Multi-Select (Compact)
         st.markdown("**🎯 Target Positions**")
-        selected_positions = st.multiselect(
+        target_positions = st.multiselect(
             "Select Target Positions (Max 5):",
             options=STANDARD_POSITIONS,
-            default=st.session_state.selected_positions,
+            default=st.session_state.target_positions,
             key='position_select',
             help="Select your target job positions"
         )
 
-        # Update positions immediately
-        st.session_state.selected_positions = selected_positions
+        # Always update session state immediately
+        st.session_state.target_positions = target_positions
+        
+        # Debug: Show current selections
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug - Target positions: {target_positions}")
+            st.write(f"Debug - Session state positions: {st.session_state.target_positions}")
 
         # Job Types Multi-Select (Compact)
         st.markdown("**💼 Job Types**")
@@ -208,54 +246,68 @@ def profile_analysis_tab():
             help="Select the types of employment you're interested in"
         )
         
-        # Update session state immediately
+        # Always update session state immediately
         st.session_state.selected_job_types = selected_job_types
 
-        # Job Preferences Multi-Select
-        st.markdown("**🌐 Job Preference Keywords**")
+        # Skills Multi-Select
+        st.markdown("**🛠️ Skills**")
         
-        # Combine standard preferences with any custom ones already selected
-        current_preference_options = list(ALL_STANDARD_PREFERENCES)
-        for pref in st.session_state.selected_preferences:
-            if pref not in current_preference_options:
-                current_preference_options.append(pref)
+        # Combine standard skills with any custom ones already selected
+        current_skill_options = list(ALL_STANDARD_PREFERENCES)
+        for skill in st.session_state.skills:
+            if skill not in current_skill_options:
+                current_skill_options.append(skill)
         
-        # Job Preferences Multi-Select (Compact)
-        selected_prefs = st.multiselect(
-            "Select relevant keywords (Work Style, Tech, Domain): *",
-            options=current_preference_options,
-            default=st.session_state.selected_preferences,
-            key='preference_select',
-            help="**Required** - Select keywords that describe your job preferences"
+        # Skills Multi-Select (Compact)
+        selected_skills = st.multiselect(
+            "Select your skills (Work Style, Tech, Domain): *",
+            options=current_skill_options,
+            default=st.session_state.skills,
+            key='skill_select',
+            help="**Required** - Select skills that describe your expertise"
         )
         
-        # Update session state immediately
-        st.session_state.selected_preferences = selected_prefs
+        # Always update session state immediately
+        st.session_state.skills = selected_skills
         
-        # Custom preference input (compact)
+        # Debug: Show current selections
+        if st.session_state.get('debug_mode', False):
+            st.write(f"Debug - Selected skills: {selected_skills}")
+            st.write(f"Debug - Session state skills: {st.session_state.skills}")
+        
+        # Custom skill input (compact)
         col1, col2 = st.columns([4, 1])
         with col1:
-            custom_preference = st.text_input(
-                "Add custom preference:",
+            custom_skill = st.text_input(
+                "Add custom skill:",
                 placeholder="e.g., Custom Skill",
-                key='custom_pref_input_pref'
+                key='custom_skill_input'
             )
         with col2:
-            add_preference_clicked = st.button("Add", key='add_preference_btn', help="Add custom preference")
+            add_skill_clicked = st.button("Add", key='add_skill_btn', help="Add custom skill")
             
-        # Handle preference addition
-        if add_preference_clicked and custom_preference and custom_preference.strip():
-            preference = custom_preference.strip()
-            print(f"TERMINAL: Attempting to add preference: {preference}")
-            if preference not in st.session_state.selected_preferences:
-                st.session_state.selected_preferences.append(preference)
-                print(f"TERMINAL: Successfully added preference: {preference}")
-                print(f"TERMINAL: Current preferences: {st.session_state.selected_preferences}")
-                st.success(f"Added: {preference}")
+        # Handle skill addition
+        if add_skill_clicked and custom_skill and custom_skill.strip():
+            skill = custom_skill.strip()
+            print(f"TERMINAL: Attempting to add skill: {skill}")
+            
+            # Validate skill before adding
+            from utils.validation import FormValidator
+            is_valid, error_msg = FormValidator.validate_preference(skill)
+            
+            if is_valid:
+                if skill not in st.session_state.skills:
+                    st.session_state.skills.append(skill)
+                    print(f"TERMINAL: Successfully added skill: {skill}")
+                    print(f"TERMINAL: Current skills: {st.session_state.skills}")
+                    st.success(f"Added: {skill}")
+                else:
+                    print(f"TERMINAL: Skill already exists: {skill}")
+                    st.warning("Skill already added!")
             else:
-                print(f"TERMINAL: Preference already exists: {preference}")
-                st.warning("Preference already added!")
-            st.rerun()
+                print(f"TERMINAL: Invalid skill: {skill} - {error_msg}")
+                st.error(f"Error: {error_msg}")
+            # Removed st.rerun() to reduce lag
 
     # Analyze Profile Button
     st.markdown("---")
@@ -263,20 +315,15 @@ def profile_analysis_tab():
     
     with col2:
         if st.button("🚀 Analyze Profile", type="primary", use_container_width=True):
-            print("DEBUG: Analyze Profile button clicked!")
-            print(f"DEBUG: Current locations before analysis: {st.session_state.preferred_locations}")
             # Validate form before analysis
             if validate_form_before_analysis(st.session_state):
-                print("DEBUG: Form validation passed!")
                 st.session_state.is_analyzing = True
                 st.rerun()
             else:
-                print("DEBUG: Form validation failed!")
                 st.warning("Please fill in all required fields before analysis.")
 
     # Show loading overlay when analyzing
     if st.session_state.get('is_analyzing', False):
-        print("DEBUG: Starting analysis process...")
         LoadingOverlay.show_loading_overlay()
         
         # Perform the actual analysis
@@ -286,12 +333,17 @@ def profile_analysis_tab():
             
             if backend_response:
                 st.session_state.backend_data = backend_response
+                
+                # Display webhook response data
+                st.success("✅ Webhook response received!")
+                with st.expander("📋 View Webhook Response Data"):
+                    st.json(backend_response)
             
             # Continue with local analysis
             data = analyze_resume_logic(
                 st.session_state.raw_resume_text, 
-                st.session_state.selected_positions, 
-                st.session_state.selected_preferences,
+                st.session_state.target_positions, 
+                st.session_state.skills,
                 st.session_state.preferred_locations
             )
             
@@ -301,16 +353,12 @@ def profile_analysis_tab():
                 # Update session state with analysis results
                 SessionStateManager.update_session_state_from_analysis(data)
                 
-                print(f"DEBUG: Locations after analysis: {st.session_state.preferred_locations}")
-                
                 # Print user data to terminal immediately after analysis
-                print("DEBUG: About to print user data to terminal...")
                 print_ui_data_to_terminal(
                     session_state=st.session_state,
                     analysis_data=data,
                     job_recommendations=None
                 )
-                print("DEBUG: Finished printing user data to terminal.")
 
                 # Rerun to update the input widgets with new state values
                 st.experimental_rerun()
@@ -325,19 +373,75 @@ def profile_analysis_tab():
             st.rerun()
 
 
+def display_webhook_response():
+    """Display webhook response data if available."""
+    if st.session_state.get('backend_data'):
+        st.markdown("### 🔗 n8n Webhook Response")
+        st.markdown("---")
+        
+        # Display the raw response
+        st.json(st.session_state.backend_data)
+        
+        # Try to extract specific data if it exists
+        response_data = st.session_state.backend_data
+        
+        if isinstance(response_data, dict):
+            # Display key information
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.markdown("**Response Summary:**")
+                st.write(f"✅ Success: {response_data.get('success', 'Unknown')}")
+                st.write(f"📅 Timestamp: {response_data.get('timestamp', 'Unknown')}")
+                
+            with col2:
+                if 'data' in response_data:
+                    data = response_data['data']
+                    st.markdown("**Extracted Data:**")
+                    if 'name' in data:
+                        st.write(f"👤 Name: {data['name']}")
+                    if 'email' in data:
+                        st.write(f"📧 Email: {data['email']}")
+                    if 'phone' in data:
+                        st.write(f"📞 Phone: {data['phone']}")
+                    if 'preferred_location' in data:
+                        st.write(f"📍 Location: {data['preferred_location']}")
+            
+            # Display job recommendations if available
+            if 'data' in response_data and 'job_recommendations' in response_data['data']:
+                st.markdown("**Job Recommendations from Webhook:**")
+                job_recs = response_data['data']['job_recommendations']
+                for i, job in enumerate(job_recs, 1):
+                    st.write(f"{i}. **{job.get('title', 'N/A')}** at {job.get('company', 'N/A')}")
+                    st.write(f"   Location: {job.get('location', 'N/A')}")
+                    st.write(f"   Salary: {job.get('salary_range', 'N/A')}")
+                    st.write(f"   Match: {job.get('match_score', 'N/A')}")
+                    st.write("---")
+
+
 def job_recommendations_tab():
     """Content for the Job Recommendations tab."""
     st.header("Job Recommendations")
     st.markdown("---")
     
     if st.session_state.get('analyzed_data'):
-        DisplayComponents.display_analysis_results(st.session_state.analyzed_data)
+        # Analysis Results section removed - only process final edited data
+        st.success("✅ Profile analysis completed! Job recommendations generated below.")
+        
+        # Display webhook response if available
+        if st.session_state.get('backend_data'):
+            display_webhook_response()
+            st.markdown("---")
+        
+        # Hide extracted links display
+        # if st.session_state.get('extracted_links'):
+        #     DisplayComponents.display_extracted_links(st.session_state.extracted_links)
         
         # Generate job recommendations
         job_recommendations = generate_job_recommendations(
             resume_text=st.session_state.raw_resume_text,
-            target_positions=st.session_state.selected_positions,
-            preferences=st.session_state.selected_preferences,
+            target_positions=st.session_state.target_positions,
+            preferences=st.session_state.skills,
             locations=st.session_state.preferred_locations
         )
         
@@ -348,6 +452,13 @@ def job_recommendations_tab():
         
         # Display the recommendations
         DisplayComponents.display_job_recommendations(job_recommendations_dict)
+        
+        # Save to cloud button
+        st.markdown("---")
+        col1, col2, col3 = st.columns([1, 2, 1])
+        
+        with col2:
+            st.info("💡 Your resume has been automatically processed and saved to Google Drive and Firebase!")
     else:
         st.info("Please run the profile analysis first to see personalized job recommendations.")
         st.markdown("### How it works:")
@@ -355,6 +466,7 @@ def job_recommendations_tab():
         st.markdown("2. **Click 'Analyze Profile'** to process your information")
         st.markdown("3. **View personalized job recommendations** based on your skills and experience")
         st.markdown("4. **Click on job titles** to apply directly to positions")
+        st.markdown("5. **Save your complete profile to cloud** for future access")
 
 
 def resume_improver_tab():
@@ -404,6 +516,25 @@ def main():
     st.title("🚀 AI Career Optimization Tool")
     st.markdown("**Transform your career with AI-powered resume analysis and job recommendations**")
     st.markdown("---")
+    
+    # Debug section to check webhook response
+    if st.session_state.get('backend_data'):
+        st.sidebar.markdown("### 🔗 Webhook Status")
+        st.sidebar.success("✅ Webhook response received!")
+        
+        col1, col2 = st.sidebar.columns(2)
+        with col1:
+            if st.button("📋 View Response"):
+                st.sidebar.json(st.session_state.backend_data)
+        with col2:
+            if st.button("🖥️ Print to Terminal"):
+                # Use st.write to display in sidebar instead of print
+                st.sidebar.markdown("**Webhook Response:**")
+                st.sidebar.json(st.session_state.backend_data)
+                st.sidebar.success("✅ Displayed in sidebar!")
+    else:
+        st.sidebar.markdown("### 🔗 Webhook Status")
+        st.sidebar.info("⏳ No webhook response yet")
     
     # Create tabs
     tab1, tab2, tab3 = st.tabs([

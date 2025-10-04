@@ -62,8 +62,9 @@ def print_ui_data_to_terminal(session_state: Dict[str, Any], analysis_data: Dict
         "name": session_state.get('full_name', ''),
         "email": session_state.get('email', ''),
         "contact": session_state.get('contact', ''),
-        "skills": skills,
-        "job_preferences": session_state.get('selected_preferences', []),
+        "extracted_skills": skills,
+        "selected_skills": session_state.get('skills', []),
+        "target_positions": session_state.get('target_positions', []),
         "job_types": session_state.get('selected_job_types', []),
         "location_preferences": session_state.get('preferred_locations', [])
     }
@@ -113,9 +114,18 @@ class BackendClient:
             # Convert to JSON
             payload = analysis_request.to_json()
             
-            # Debug: Print the data being sent
-            print(f"TERMINAL: Sending data to webhook: {self.base_url}")
-            print(f"TERMINAL: Payload: {payload}")
+            # Debug: Print the data being sent (using sys.stdout to avoid Streamlit conflicts)
+            import sys
+            try:
+                sys.stdout.write("=" * 80 + "\n")
+                sys.stdout.write("🚀 WEBHOOK REQUEST TO n8n\n")
+                sys.stdout.write("=" * 80 + "\n")
+                sys.stdout.write(f"📍 URL: {self.base_url}\n")
+                sys.stdout.write(f"📦 Payload: {payload}\n")
+                sys.stdout.write("-" * 80 + "\n")
+                sys.stdout.flush()
+            except:
+                pass  # Ignore if stdout is not available
             
             # Send request to webhook
             response = requests.post(
@@ -125,8 +135,16 @@ class BackendClient:
                 timeout=self.timeout
             )
             
-            print(f"TERMINAL: Webhook response status: {response.status_code}")
-            print(f"TERMINAL: Webhook response: {response.text}")
+            try:
+                sys.stdout.write("📥 WEBHOOK RESPONSE FROM n8n\n")
+                sys.stdout.write("-" * 80 + "\n")
+                sys.stdout.write(f"✅ Status Code: {response.status_code}\n")
+                sys.stdout.write(f"📄 Response Headers: {dict(response.headers)}\n")
+                sys.stdout.write(f"📋 Response Body: {response.text}\n")
+                sys.stdout.write("=" * 80 + "\n")
+                sys.stdout.flush()
+            except:
+                pass  # Ignore if stdout is not available
             
             if response.status_code == 200:
                 response_data = response.json()
@@ -276,20 +294,39 @@ def send_resume_data_to_backend(session_state: Dict[str, Any]) -> Optional[Dict[
     Returns:
         Backend response data or None if failed
     """
-    # Create analysis request
-    analysis_request = DataConverter.session_state_to_analysis_request(session_state)
+    # Try the new simple webhook client first
+    try:
+        from utils.n8n_webhook_client import send_dynamic_data_to_n8n
+        response_data = send_dynamic_data_to_n8n(session_state)
+        
+        if response_data:
+            st.success("✅ Data sent to n8n webhook successfully!")
+            return response_data
+        else:
+            st.warning("⚠️ n8n webhook failed, trying fallback method...")
+    except Exception as e:
+        st.warning(f"⚠️ n8n webhook error: {str(e)}, trying fallback method...")
     
-    # Initialize backend client
-    backend_client = BackendClient()
-    
-    # Send request
-    response = backend_client.send_resume_analysis_request(analysis_request)
-    
-    if response.success:
-        st.success("✅ Data sent to webhook successfully!")
-        return response.data
-    else:
-        st.warning(f"⚠️ Webhook processing failed: {response.error_message}")
+    # Fallback to original method
+    try:
+        # Create analysis request
+        analysis_request = DataConverter.session_state_to_analysis_request(session_state)
+        
+        # Initialize backend client
+        backend_client = BackendClient()
+        
+        # Send request
+        response = backend_client.send_resume_analysis_request(analysis_request)
+        
+        if response.success:
+            st.success("✅ Data sent to webhook successfully!")
+            return response.data
+        else:
+            st.warning(f"⚠️ Webhook processing failed: {response.error_message}")
+            st.info("Continuing with local analysis...")
+            return None
+    except Exception as e:
+        st.warning(f"⚠️ All webhook methods failed: {str(e)}")
         st.info("Continuing with local analysis...")
         return None
 
